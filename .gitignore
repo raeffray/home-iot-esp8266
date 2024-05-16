@@ -61,4 +61,7 @@
 .history
 .ionide
 
+data/config.json
+
+
 # End of https://www.toptal.com/developers/gitignore/api/platformio,visualstudiocode,c++
