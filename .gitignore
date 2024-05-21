@@ -61,7 +61,7 @@
 .history
 .ionide
 
-data/config.json
+data/
 
 node_modules/
 *_log

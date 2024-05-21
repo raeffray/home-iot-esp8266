@@ -1,8 +1,0 @@
-{
-    "mqttServer": "ZZZ",
-    "mqttPort": 8883,
-    "mqttUser": "ZZZ",
-    "mqttPassword": "ZZZ",
-    "SSID": "ZZZ-2G",
-    "wifiPassword": "ZZZ"
-}
