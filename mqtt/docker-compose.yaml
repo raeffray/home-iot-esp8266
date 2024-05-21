@@ -1,0 +1,23 @@
+version: "3.7"
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    hostname: mosquitto-server
+    container_name: mosquitto-server
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto:/etc/mosquitto
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/mosquitto.pwd:/mosquitto/config/mosquitto.pwd
+    
+  node_red:
+    image: nodered/node-red
+    hostname: node-red
+    container_name: node-red
+    ports:
+      - "1880:1880"
+    volumes:
+      - ./node_red:/data

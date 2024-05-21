@@ -1,0 +1,126 @@
+[
+    {
+        "id": "c1ea08b1ce358d05",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "c0b79d1ab7230567",
+        "type": "mqtt-broker",
+        "name": "mqtt local",
+        "broker": "192.168.3.5",
+        "port": "1883",
+        "clientid": "red-node",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "72796b182af9aa75",
+        "type": "mqtt out",
+        "z": "c1ea08b1ce358d05",
+        "name": "Calibrate",
+        "topic": "dev_test/termometer/calibrate",
+        "qos": "0",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "c0b79d1ab7230567",
+        "x": 700,
+        "y": 640,
+        "wires": []
+    },
+    {
+        "id": "4e38bc9b51664454",
+        "type": "inject",
+        "z": "c1ea08b1ce358d05",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "dev_test/termometer/calibrate",
+        "payload": "0.5",
+        "payloadType": "num",
+        "x": 380,
+        "y": 640,
+        "wires": [
+            [
+                "72796b182af9aa75"
+            ]
+        ]
+    },
+    {
+        "id": "f0971ee30cce2348",
+        "type": "debug",
+        "z": "c1ea08b1ce358d05",
+        "name": "debug 1",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 740,
+        "y": 780,
+        "wires": []
+    },
+    {
+        "id": "ded21ff0289af54e",
+        "type": "mqtt in",
+        "z": "c1ea08b1ce358d05",
+        "name": "",
+        "topic": "dev_test/termometer/status",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "c0b79d1ab7230567",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 420,
+        "y": 780,
+        "wires": [
+            [
+                "f0971ee30cce2348"
+            ]
+        ]
+    }
+]

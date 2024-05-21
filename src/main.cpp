@@ -5,7 +5,8 @@
 #include <string>
 #include <functional>
 #include <PubSubClient.h>
-#include <WiFiClientSecure.h>
+// #include <WiFiClientSecure.h>
+#include <WiFiClient.h>
 #include <LittleFS.h>
 
 std::map<std::string, std::function<void(float)>> calibrationMap;
@@ -15,54 +16,46 @@ const char *TERM_CALIBRATE_TOPIC = "dev_test/termometer/calibrate";
 
 const char *TERM_STATUS_TOPIC = "dev_test/termometer/status";
 
-const char *mqttUser;
-const char *mqttPassword;
-const char *ssid;
+String ssid;
 
 // adjustments for termometer readings
 const int INTERVAL = 250;
 const int THERM_PIN = 14;
 const float referenceVoltage = 1.0;                                       // Adjust this based on your actual reference voltage if known
 const float correctionFactor = 0.29 / (93.0 / 1023.0 * referenceVoltage); // Based on your earlier example
-
-float tempCorrection = 5;
-
+float tempCorrection = 1;
 unsigned long lastSendTime = 0; // Stores last time the JSON was sent
 const long interval = 5000;     // Interval at which to send JSON (1000 milliseconds or 1 second)
 
-// platforIO complains with we don't declare beforehand
-void handleRoot();
-void handleMessage();
-void handleStatusPage();
-void handleCalibrateTermometer(float value);
-void tryConnectMq();
-float checkTemperature();
-void sendJsonToTopic(PubSubClient &mqttClient, const char *topic, const char *serializedJson);
-void sendTermometerMessage(PubSubClient &mqttClient, const char *topic, String value);
-
-WiFiClientSecure espClient;
-
+WiFiClient espClient;
 PubSubClient client(espClient);
-
 ESP8266WebServer server(80);
 
-void reconnect()
+struct ConfigInfo
+{
+  int mqttPort;
+  String mqttServer;
+  String mqttUser;
+  String mqttPassword;
+  String ssid;
+  String wifiPassword;
+};
+
+// platforIO complains with we don't declare beforehand
+void connect(String mqttUser, String mqttPassword)
 {
 
   while (!client.connected())
   {
     Serial.println("Attempting MQTT connection...");
-    Serial.print("user: ");
-    Serial.println(mqttUser);
-    
     // Connect with username and password
-    if (client.connect("ESP8266Client-dev-test", mqttUser, mqttPassword))
+    if (client.connect("ESP8266Client-dev-test", mqttUser.c_str(), mqttPassword.c_str()))
     {
       Serial.println("MQTT client connected.");
 
       client.subscribe(TERM_CALIBRATE_TOPIC);
 
-      Serial.println("MQTT client subscribed to: ");
+      Serial.print("MQTT client subscribed to: ");
       Serial.println(TERM_CALIBRATE_TOPIC);
     }
     else
@@ -73,6 +66,16 @@ void reconnect()
       delay(5000);
     }
   }
+}
+
+float checkTemperature()
+{
+  int adcValue = analogRead(A0);
+
+  float voltage = (adcValue / 1023.0 * referenceVoltage) * correctionFactor;
+  float temperature = (voltage * 100.0) - tempCorrection; // Convert voltage to temperature
+
+  return temperature;
 }
 
 /**
@@ -95,99 +98,56 @@ void mqCallback(char *topic, byte *payload, unsigned int length)
   calibrationMap[topic](valueString.toFloat());
 }
 
-void setupWifi(String ssid, String password) {
+void setupWifi(String ssid, String password)
+{
   WiFi.begin(ssid, password);
 
-  // Wait for connection
+  Serial.println("Waiting for WI-FI Connection");
+
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
     Serial.print(".");
   }
-
   Serial.println("");
-  Serial.print("IP address: ");
+  Serial.print("Connected to local network using IP Address:  ");
   Serial.println(WiFi.localIP());
-
 }
 
-void setupMq(const char* mqHost, const int mqPort){
-  espClient.setInsecure();
-  client.setServer(mqHost,mqPort);
-  client.setCallback(mqCallback);
-}
-
-void setupWebserver(){
-  // Define routes
-  server.on("/", handleRoot);
-  server.on("/send", HTTP_GET, handleMessage);
-
-  server.on("/status", HTTP_GET, handleStatusPage);
-
-  server.begin();
-  Serial.println("HTTP server started");
-}
-
-void setup()
+void handleStatusPage()
 {
-  Serial.begin(9600);
-  pinMode(LED_BUILTIN, OUTPUT);
-  // pinMode(THERM_PIN, INPUT);
+  float temperature = checkTemperature();
 
-  //   if (!LittleFS.begin()) {
-  //       Serial.println("An error occurred while mounting LittleFS");
-  //       return;
-  //   } else {
-  //       Serial.println("Mounted LittleFS successfully");
-  //   }
+  String html = "<!DOCTYPE html>"
+                "<html lang='en'>"
+                "<head>"
+                "<meta charset='UTF-8'>"
+                "<meta http-equiv='refresh' content='3'>"
+                "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+                "<title>Status Page</title>"
+                "<style>"
+                "body { font-family: 'Arial', sans-serif; background-color: #282c34; color: #61dafb; }"
+                "h1 { color: #ff8c00; }"
+                "p { font-size: 1.2em; }"
+                "</style>"
+                "</head>"
+                "<body>"
+                "<h1>ESP8266 Status</h1>"
+                "<p>System Uptime: " +
+                String(millis() / 1000) + " seconds</p>"
+                                          "<p>Operating Voltage: 3.3V</p>"
+                                          "<p>WiFi SSID: " +
+                ssid + "</p>"
+                               "<p>MAC Address : " +
+                String(WiFi.macAddress()) + "</p>"
+                                            "<p>Signal Strength: " +
+                String(WiFi.RSSI()) + " dBm</p>"
+                                      "<p>Room Temperature: " +
+                String(temperature) + " C</p>"
+                                      "</body>"
+                                      "</html>";
 
-  // File configFile = LittleFS.open("/config.json", "r");  // Open a file for writing
-
-  // if (configFile) {
-  //  size_t size = configFile.size();
-  //  std::unique_ptr<char[]> buf(new char[size]);
-  //  configFile.readBytes(buf.get(), size);
-
-  JsonDocument doc;
-  // deserializeJson(doc, buf.get());
-
-  // const char* mqttServer = doc["mqttServer"];
-  // const int mqttPort = doc["mqttPort"];
-  // mqttUser = doc["mqttUser"];
-  // mqttPassword = doc["mqttPassword"];
-  // ssid = doc["SSID"];
-  // const char* wifiPassword = doc["wifiPassword"];
-
-  const char *mqttServer = "ZZZ";
-  const int mqttPort = 8883;
-  mqttUser = "ZZZ";
-  mqttPassword = "ZZZ";
-  ssid = "ZZZ-2G";
-  const char *wifiPassword = "ZZZ";
-
-  setupWifi(ssid, wifiPassword);
-  setupMq(mqttServer, mqttPort);
-  setupWebserver();
-  
-  // defines a stratucture to map device and its calibration function
-  calibrationMap[TERM_CALIBRATE_TOPIC] = handleCalibrateTermometer;
-    //} else {
-  //  Serial.println("Config file not loaded");
-  //}
-}
-
-void loop()
-{
-  server.handleClient();
-  tryConnectMq();
-
-  unsigned long currentTime = millis();
-  if (currentTime - lastSendTime >= interval)
-  {
-    float temperature = checkTemperature();
-    sendTermometerMessage(client, TERM_STATUS_TOPIC, String(temperature));
-    lastSendTime = currentTime; // Update the last send time
-  }
+  server.send(200, "text/html", html);
 }
 
 void handleRoot()
@@ -211,11 +171,84 @@ void handleMessage()
   }
 }
 
-void tryConnectMq()
+void setupWebserver()
 {
+  // Define routes
+  server.on("/", handleRoot);
+  server.on("/send", HTTP_GET, handleMessage);
+  server.on("/status", HTTP_GET, handleStatusPage);
+
+  server.begin();
+  Serial.println("HTTP server started");
+}
+
+void listFilesInLittleFS()
+{
+  Serial.println("Listing files in LittleFS:");
+  Dir dir = LittleFS.openDir("");
+  while (dir.next())
+  {
+    Serial.print("File: ");
+    Serial.print(dir.fileName());
+    Serial.print(" - Size: ");
+    Serial.println(dir.fileSize());
+  }
+}
+
+ConfigInfo getConfiguration()
+{
+  if (!LittleFS.begin())
+  {
+    Serial.println("Failed to mount LittleFS");
+    throw std::runtime_error("Failed to mount LittleFS");
+  }
+
+  File configFile = LittleFS.open("/config.json", "r");
+  if (!configFile)
+  {
+    Serial.println("Failed to open the config file");
+    throw std::runtime_error("Failed to open the config file");
+  }
+
+  Serial.println("Config file opened successfully.");
+  size_t size = configFile.size();
+  std::unique_ptr<char[]> buf(new char[size]);
+  configFile.readBytes(buf.get(), size);
+  configFile.close();
+
+  Serial.print("Read config file: ");
+  Serial.println(buf.get());
+
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, buf.get());
+
+  if (error)
+  {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.f_str());
+    throw std::runtime_error("Failed to read JSON file");
+  }
+
+  ConfigInfo configInfo;
+
+  configInfo.mqttPort = doc["mqttPort"];
+  configInfo.mqttServer = doc["mqttServer"].as<String>(); // Ensure type compatibility
+  configInfo.mqttUser = doc["mqttUser"].as<String>();
+  configInfo.mqttPassword = doc["mqttPassword"].as<String>();
+  configInfo.ssid = doc["SSID"].as<String>();
+  configInfo.wifiPassword = doc["wifiPassword"].as<String>();
+
+  return configInfo;
+}
+
+void connectToMQ(String mqttHost, int mqttPort, String mqttUser, String mqttPassword)
+{
+  client.setServer(mqttHost.c_str(), mqttPort);
+  client.setCallback(mqCallback);
+
   if (!client.connected())
   {
-    reconnect();
+    connect(mqttUser.c_str(), mqttPassword.c_str());
   }
   client.loop();
 }
@@ -227,66 +260,6 @@ void handleCalibrateTermometer(float newValue)
   Serial.println(newValue);
 }
 
-float checkTemperature()
-{
-  int adcValue = analogRead(A0);
-
-  float voltage = (adcValue / 1023.0 * referenceVoltage) * correctionFactor;
-  float temperature = (voltage * 100.0) - tempCorrection; // Convert voltage to temperature
-
-  return temperature;
-}
-
-void handleStatusPage()
-{
-
-  float temperature = checkTemperature();
-
-  String html = "<!DOCTYPE html>"
-                "<html lang='en'>"
-                "<head>"
-                "<meta charset='UTF-8'>"
-                "<meta http-equiv='refresh' content='3'>"
-                "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-                "<title>Status Page</title>"
-                "<style>"
-                "body { font-family: 'Arial', sans-serif; background-color: #282c34; color: #61dafb; }"
-                "h1 { color: #ff8c00; }"
-                "p { font-size: 1.2em; }"
-                "</style>"
-                "</head>"
-                "<body>"
-                "<h1>ESP8266 Status</h1>"
-                "<p>System Uptime: " +
-                String(millis() / 1000) + " seconds</p>"
-                                          "<p>Operating Voltage: 3.3V</p>"
-                                          "<p>WiFi SSID: " +
-                String(ssid) + "</p>"
-                               "<p>MAC Address : " +
-                String(WiFi.macAddress()) + "</p>"
-                                            "<p>Signal Strength: " +
-                String(WiFi.RSSI()) + " dBm</p>"
-                                      "<p>Room Temperature: " +
-                String(temperature) + " C</p>"
-                                      "</body>"
-                                      "</html>";
-
-  server.send(200, "text/html", html);
-}
-
-void sendTermometerMessage(PubSubClient &mqttClient, const char *topic, String value){
-  // Create a JSON object
-  JsonDocument doc; // Adjust size based on your JSON structure
-  doc["deviceId"] = "termometer";
-  doc["temperature"] = value;
-
-  char jsonBuffer[512];           // Adjust size based on your JSON structure
-  serializeJson(doc, jsonBuffer); // Serialize the JSON object to a buffer
-
-  sendJsonToTopic(mqttClient, TERM_STATUS_TOPIC, jsonBuffer);
-
-}
-
 void sendJsonToTopic(PubSubClient &mqttClient, const char *topic, const char *serializedJson)
 {
   // Serialize JSON to string
@@ -296,4 +269,50 @@ void sendJsonToTopic(PubSubClient &mqttClient, const char *topic, const char *se
   Serial.print(topic);
   Serial.print("] : ");
   Serial.println(serializedJson);
+}
+
+void sendTermometerMessage(PubSubClient &mqttClient, const char *topic, String value)
+{
+  // Create a JSON object
+  JsonDocument doc; // Adjust size based on your JSON structure
+  doc["deviceId"] = "termometer";
+  doc["temperature"] = value;
+
+  char jsonBuffer[512];           // Adjust size based on your JSON structure
+  serializeJson(doc, jsonBuffer); // Serialize the JSON object to a buffer
+
+  sendJsonToTopic(mqttClient, TERM_STATUS_TOPIC, jsonBuffer);
+}
+
+void setup()
+{
+  Serial.begin(115200);
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  ConfigInfo configInfo = getConfiguration();
+
+  setupWifi(configInfo.ssid, configInfo.wifiPassword);
+
+  connectToMQ(configInfo.mqttServer, configInfo.mqttPort, configInfo.mqttUser, configInfo.mqttPassword);
+
+  setupWebserver();
+
+  ssid = configInfo.ssid;
+
+  Serial.println("Getting Config..");
+
+  calibrationMap[TERM_CALIBRATE_TOPIC] = handleCalibrateTermometer;
+}
+
+void loop()
+{
+  server.handleClient();
+
+  unsigned long currentTime = millis();
+  if (currentTime - lastSendTime >= interval)
+  {
+    float temperature = checkTemperature();
+    sendTermometerMessage(client, TERM_STATUS_TOPIC, String(temperature));
+    lastSendTime = currentTime; // Update the last send time
+  }
 }

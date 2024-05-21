@@ -63,5 +63,8 @@
 
 data/config.json
 
+node_modules/
+*_log
+.npm
 
 # End of https://www.toptal.com/developers/gitignore/api/platformio,visualstudiocode,c++
