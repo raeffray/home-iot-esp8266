@@ -1,5 +1,7 @@
 version: "3.7"
 
+name: home-iot
+
 services:
   mosquitto:
     image: eclipse-mosquitto
