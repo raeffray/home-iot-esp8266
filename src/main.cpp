@@ -12,9 +12,9 @@
 std::map<std::string, std::function<void(float)>> calibrationMap;
 
 // MQ Topics
-const char *TERM_CALIBRATE_TOPIC = "dev_test/termometer/calibrate";
+const char *TERM_CALIBRATE_TOPIC = "termometer/calibrate";
 
-const char *TERM_STATUS_TOPIC = "dev_test/termometer/status";
+const char *TERM_STATUS_TOPIC = "termometer/status";
 
 String ssid;
 
@@ -29,7 +29,7 @@ const long interval = 5000;     // Interval at which to send JSON (1000 millisec
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-ESP8266WebServer server(80);
+ESP8266WebServer server(8001);
 
 struct ConfigInfo
 {
@@ -71,6 +71,9 @@ void connect(String mqttUser, String mqttPassword)
 float checkTemperature()
 {
   int adcValue = analogRead(A0);
+
+  Serial.print("Raw reading: ");
+  Serial.println(adcValue);
 
   float voltage = (adcValue / 1023.0 * referenceVoltage) * correctionFactor;
   float temperature = (voltage * 100.0) - tempCorrection; // Convert voltage to temperature

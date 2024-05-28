@@ -12,7 +12,7 @@
         "type": "mqtt-broker",
         "name": "mqtt local",
         "broker": "192.168.3.5",
-        "port": "8883",
+        "port": "1883",
         "clientid": "red-node",
         "autoConnect": true,
         "usetls": false,
@@ -86,7 +86,24 @@
         ]
     },
     {
-        "id": "acb78f3b99a5a295",
+        "id": "f0971ee30cce2348",
+        "type": "debug",
+        "z": "c1ea08b1ce358d05",
+        "name": "debug 1",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 740,
+        "y": 780,
+        "wires": []
+    },
+    {
+        "id": "ded21ff0289af54e",
         "type": "mqtt in",
         "z": "c1ea08b1ce358d05",
         "name": "",
@@ -98,28 +115,12 @@
         "rap": true,
         "rh": 0,
         "inputs": 0,
-        "x": 480,
+        "x": 420,
         "y": 780,
         "wires": [
             [
                 "f0971ee30cce2348"
             ]
         ]
-    },
-    {
-        "id": "f0971ee30cce2348",
-        "type": "debug",
-        "z": "c1ea08b1ce358d05",
-        "name": "debug 1",
-        "active": true,
-        "tosidebar": true,
-        "console": false,
-        "tostatus": false,
-        "complete": "false",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 740,
-        "y": 780,
-        "wires": []
     }
 ]
