@@ -41,10 +41,29 @@ struct ConfigInfo
   String wifiPassword;
 };
 
+/**
+ *
+ * Defines the MQ Callback function
+ *
+ */
+void mqCallback(char *topic, byte *payload, unsigned int length)
+{
+  String valueString;
+  for (unsigned i = 0; i < length; i++)
+  {
+    valueString += (char)payload[i];
+  }
+  Serial.print("payload receive from topic [");
+  Serial.print(topic);
+  Serial.print("] : ");
+  Serial.println(valueString);
+
+  calibrationMap[topic](valueString.toFloat());
+}
+
 // platforIO complains with we don't declare beforehand
 void connect(String mqttUser, String mqttPassword)
 {
-
   while (!client.connected())
   {
     Serial.println("Attempting MQTT connection...");
@@ -52,7 +71,7 @@ void connect(String mqttUser, String mqttPassword)
     if (client.connect("ESP8266Client-dev-test", mqttUser.c_str(), mqttPassword.c_str()))
     {
       Serial.println("MQTT client connected.");
-
+      client.setCallback(mqCallback); 
       client.subscribe(TERM_CALIBRATE_TOPIC);
 
       Serial.print("MQTT client subscribed to: ");
@@ -72,33 +91,10 @@ float checkTemperature()
 {
   int adcValue = analogRead(A0);
 
-  Serial.print("Raw reading: ");
-  Serial.println(adcValue);
-
   float voltage = (adcValue / 1023.0 * referenceVoltage) * correctionFactor;
   float temperature = (voltage * 100.0) - tempCorrection; // Convert voltage to temperature
 
   return temperature;
-}
-
-/**
- *
- * Defines the MQ Callback function
- *
- */
-void mqCallback(char *topic, byte *payload, unsigned int length)
-{
-  String valueString;
-  for (unsigned i = 0; i < length; i++)
-  {
-    valueString += (char)payload[i];
-  }
-  Serial.print("payload receive from topic [");
-  Serial.print(topic);
-  Serial.print("] : ");
-  Serial.println(valueString);
-
-  calibrationMap[topic](valueString.toFloat());
 }
 
 void setupWifi(String ssid, String password)
@@ -174,12 +170,19 @@ void handleMessage()
   }
 }
 
+void handleReset() {
+  server.send(200, "text/plain", "Resetting...");
+  delay(1000); // Small delay to ensure the response is sent before reset
+  ESP.restart(); // Restart the ESP8266
+}
+
 void setupWebserver()
 {
   // Define routes
   server.on("/", handleRoot);
   server.on("/send", HTTP_GET, handleMessage);
   server.on("/status", HTTP_GET, handleStatusPage);
+  server.on("/reset", HTTP_POST, handleReset);
 
   server.begin();
   Serial.println("HTTP server started");
@@ -247,13 +250,12 @@ ConfigInfo getConfiguration()
 void connectToMQ(String mqttHost, int mqttPort, String mqttUser, String mqttPassword)
 {
   client.setServer(mqttHost.c_str(), mqttPort);
-  client.setCallback(mqCallback);
 
   if (!client.connected())
   {
     connect(mqttUser.c_str(), mqttPassword.c_str());
   }
-  client.loop();
+
 }
 
 void handleCalibrateTermometer(float newValue)
@@ -310,6 +312,7 @@ void setup()
 void loop()
 {
   server.handleClient();
+  client.loop();
 
   unsigned long currentTime = millis();
   if (currentTime - lastSendTime >= interval)
